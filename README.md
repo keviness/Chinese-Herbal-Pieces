@@ -1,63 +1,94 @@
-# 中医诊断AI
+# 基于ResNet18的中药植物及饮片图片分类说明书
 
-## 项目简介
+## 1. 项目简介
 
-中医诊断AI项目是一个集成了人工智能与中医理论的辅助诊断系统，旨在为中医临床提供智能化的决策支持。项目通过收集和分析患者的症状、体征等信息，利用机器学习模型进行推理，输出中医诊断建议和个性化治疗方案。项目结构清晰，便于二次开发和功能扩展，适合科研、教学及中医信息化相关应用场景。
+本项目基于ResNet18深度卷积神经网络，实现中药植物及饮片图片的自动分类。适用于中药材识别、辅助教学等场景。
 
-## 功能
+## 2. 环境配置
 
-- **症状输入**：用户可以输入患者的症状和体征。
-- **诊断建议**：基于输入信息，系统提供中医诊断建议。
-- **治疗方案**：根据诊断结果，推荐相应的中医治疗方案。
-- **学习与改进**：通过用户反馈不断优化诊断模型。
+建议使用如下环境：
 
-## 使用方法
+- Python >= 3.7
+- PyTorch >= 1.8
+- torchvision >= 0.9
+- CUDA（可选，建议有GPU加速）
 
-1. 克隆项目到本地：
-   ```bash
-   git clone https://github.com/keviness/TCM-AI
+安装依赖：
+
+```bash
+pip install torch torchvision
+```
+
+## 3. 数据准备
+
+1. 数据集应按如下结构组织，每个类别一个文件夹，文件夹名为类别名：
    ```
-2. 安装依赖：
-   ```bash
-   pip install -r requirements.txt
+   dataset/
+     ├── train/
+     │    ├── 类别A/
+     │    └── 类别B/
+     └── val/
+          ├── 类别A/
+          └── 类别B/
    ```
-3. 运行项目：
-   ```bash
-   python main.py
+2. 图片建议为jpg或png格式，分辨率建议不低于224x224。
+
+## 4. 训练流程
+
+1. 加载数据集，使用 `torchvision.datasets.ImageFolder`。
+2. 数据增强建议使用 `transforms.RandomResizedCrop(224)`、`transforms.RandomHorizontalFlip()`等。
+3. 加载ResNet18模型，可用 `torchvision.models.resnet18(pretrained=True)`，并根据类别数修改最后的全连接层：
+   ```python
+   import torchvision.models as models
+   model = models.resnet18(pretrained=True)
+   model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
    ```
-4. 按提示输入患者的症状，获取诊断结果。
+4. 设置损失函数（如 `CrossEntropyLoss`）和优化器（如 `Adam`或 `SGD`）。
+5. 训练模型，保存最佳权重。
 
-## 文件结构
+## 5. 推理与评估
 
-| 文件/文件夹          | 描述                                                         |
-| -------------------- | ------------------------------------------------------------ |
-| `main.py`          | 项目主入口，负责运行整个程序。                               |
-| `models/`          | 存放机器学习模型文件。                                       |
-| `data/`            | 包含训练数据和测试数据。                                     |
-| `utils/`           | 提供工具函数和辅助脚本。                                     |
-| `requirements.txt` | 列出项目所需的依赖库。                                       |
-| `LICENSE`          | 项目的开源许可证文件。                                       |
-| `FunneyApp/`       | 前端与Web管理后台，基于Vue和Element UI，包含静态资源与页面。 |
+1. 加载训练好的模型权重。
+2. 对单张图片进行预处理（缩放、归一化等），送入模型预测。
+3. 输出类别概率或标签。
 
-## 图片分类
+## 6. 示例代码片段
 
-#### 花卉分类
+```python
+from torchvision import transforms, models
+from PIL import Image
+import torch
 
-基于resnet18模型对花卉数据进行训练。
+# 加载模型
+model = models.resnet18()
+model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+model.load_state_dict(torch.load('best_model.pth'))
+model.eval()
 
-#### 中药饮片分类
+# 图片预处理
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+img = Image.open('test.jpg')
+img = transform(img).unsqueeze(0)
 
-基于resnet18模型对中药饮片数据进行训练。
+# 推理
+with torch.no_grad():
+    output = model(img)
+    _, pred = torch.max(output, 1)
+    print('预测类别:', pred.item())
+```
 
-## 注意事项
+## 7. 注意事项
 
-- 本项目仅供学习和研究使用，不能替代专业医生的诊断。
-- 请确保输入信息准确，以提高诊断结果的可靠性。
+- 数据集需保证类别均衡，图片清晰。
+- 可根据实际需求调整模型结构和参数。
+- 若类别较多，建议使用更深层的ResNet或其他模型。
 
-## 贡献
+## 8. 参考文献
 
-欢迎对本项目提出建议或贡献代码！请提交 Pull Request 或联系项目维护者。
-
-## 许可证
-
-本项目基于 [MIT License](LICENSE) 开源。
+- He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. CVPR.
+- PyTorch官方文档：https://pytorch.org/docs/stable/torchvision/models.html
